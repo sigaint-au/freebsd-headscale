@@ -1,0 +1,21 @@
+# Macros -----------------------------------
+headscale="127.0.0.1"
+
+# Global configuration ---------------------
+log state changes
+log connection
+
+# Tables -----------------------------------
+table <headscale> { $headscale }
+
+# Protocols & Relays -----------------------
+http protocol wwwtls {
+    tls keypair relayd.headscale
+}
+
+relay wwwtls {
+    listen on :: port 443 tls
+    protocol wwwtls
+
+    forward to <headscale> port 8080
+}

@@ -1,0 +1,56 @@
+---
+- hosts: localhost
+  vars_files:
+    - config/secrets.yaml
+    - config/defaults.yaml
+  handlers:
+    - name: restart headscale
+      service:
+        name: headscale
+        state: restarted
+
+    - name: restart relayd
+      service:
+        name: relayd
+        state: restarted
+
+  tasks:
+
+    - name: headscale-openbsd | install headscale software and dependenencies
+      package:
+        name:
+          - headscale
+      tags:
+        - headscale
+        - headscale:packages
+
+    - name: headscale-openbsd | generate certificates for services
+      block:
+
+        - name: headscale-opebnsd | create private key
+          community.crypto.openssl_privatekey:
+            path: /etc/ssl/private/relayd.headscale.key
+      
+        - name: headscale-openbsd | create self signed certificate for relayd
+          community.crypto.x509_certificate:
+            path: /etc/ssl/relayd.headscale.crt
+            privatekey_path: /etc/ssl/private/relayd.headscale.key
+            provider: selfsigned
+
+      notify:
+        - restart relayd
+      tags:
+        - headscale
+        - headscale:openssl
+
+    - name: headscale-openbsd | deploy file templates
+      ansible.builtin.template:
+        src: "../templates/{{item.template}}"
+        dest: "{{item.dest}}"
+        mode: 0755
+      with_items:
+        - { template: relayd/relayd.conf.j2, dest: /etc/relayd.conf }
+        - { template: headscale/config.yaml.j2, dest: /etc/headscale/config.yaml }
+      notify:
+        - restart relayd
+        - restart headscale
